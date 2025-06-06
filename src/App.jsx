@@ -9,11 +9,23 @@ import Gallery from './components/Gallery';
 import TypewriterText from './components/TypewriterText';
 import { motion } from 'framer-motion';
 import { Fade } from 'react-awesome-reveal';
+import { useAuth } from './AuthContext';
+import AuthForm from './components/AuthForm';
+import AdminPanel from './components/AdminPanel';
+import { Routes, Route, Navigate, useLocation, Link } from 'react-router-dom';
 
-function App() {
-  const [showPopup, setShowPopup] = useState(false);
-  const [lightboxImage, setLightboxImage] = useState(null);
+function ProtectedRoute({ children }) {
+  const { user } = useAuth();
+  const location = useLocation();
+  if (!user) {
+    return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+  return children;
+}
 
+function AppContent({ showPopup, setShowPopup, lightboxImage, setLightboxImage, logout }) {
+  const { user } = useAuth();
+  const [showAdminPanel, setShowAdminPanel] = React.useState(false);
   // tsParticles options for floating hearts
   const particlesOptions = {
     fullScreen: { enable: false },
@@ -129,15 +141,14 @@ function App() {
                 max={100}
               />
             </div>
-            <button
+            <motion.button
               className="btn btn-success w-full py-3 mt-6 mb-2 rounded-xl text-green-100 font-bold text-lg shadow-md hover:scale-105 transition-all duration-200 border border-green-950 bg-gradient-to-r from-green-950 to-black"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.97 }}
-              as={motion.button}
               onClick={() => setShowPopup(true)}
             >
               💚 Our Love Story
-            </button>
+            </motion.button>
             <LoveStoryPopup show={showPopup} onClose={() => setShowPopup(false)} />
           </div>
         </motion.div>
@@ -145,7 +156,79 @@ function App() {
       <Lightbox image={lightboxImage} onClose={() => setLightboxImage(null)} />
       <Gallery />
       <Guestbook />
+      <div className="w-full flex justify-center gap-4 mt-8 mb-4">
+        <button
+          className="btn btn-outline btn-error text-white font-bold px-8 py-2 rounded-xl shadow hover:bg-red-700 transition"
+          onClick={logout}
+        >
+          Logout
+        </button>
+      </div>
+      {user?.is_admin && (
+        <Link
+          to="/admin"
+          style={{
+            position: 'fixed',
+            bottom: 24,
+            right: 24,
+            zIndex: 100,
+            borderRadius: '9999px',
+            background: 'linear-gradient(90deg,#166534,#222)',
+            color: 'white',
+            fontWeight: 'bold',
+            fontSize: '1.1rem',
+            boxShadow: '0 4px 24px 0 #222a',
+            border: '2px solid #166534',
+            padding: '0.75rem 1.5rem',
+            cursor: 'pointer',
+            transition: 'background 0.2s',
+            textDecoration: 'none',
+          }}
+        >
+          Admin Panel
+        </Link>
+      )}
     </div>
+  );
+}
+
+function App() {
+  const [showPopup, setShowPopup] = useState(false);
+  const [lightboxImage, setLightboxImage] = useState(null);
+  const { user, logout } = useAuth();
+
+  return (
+    <Routes>
+      <Route
+        path="/login"
+        element={
+          !user ? <AuthForm /> : <Navigate to="/" replace />
+        }
+      />
+      <Route
+        path="/"
+        element={
+          <ProtectedRoute>
+            <AppContent
+              showPopup={showPopup}
+              setShowPopup={setShowPopup}
+              lightboxImage={lightboxImage}
+              setLightboxImage={setLightboxImage}
+              logout={logout}
+            />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin"
+        element={
+          <ProtectedRoute>
+            {user && user.is_admin ? <AdminPanel /> : <Navigate to="/" replace />}
+          </ProtectedRoute>
+        }
+      />
+      <Route path="*" element={<Navigate to={user ? "/" : "/login"} replace />} />
+    </Routes>
   );
 }
 
